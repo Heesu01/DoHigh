@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import { getRecentExp } from "../api/ExpApi";
 import { getQuests } from "../api/QuestApi";
@@ -121,7 +121,7 @@ const ExperienceSection = () => {
                 key={index}
                 onClick={() =>
                   navigate(
-                    `/quest?tab=${quest.description}&year=${quest.year}&month=${quest.month}`
+                    `/quest?tab=${encodeURIComponent(quest.questName)}&year=${quest.year}&month=${quest.month}`
                   )
                 }
               >
