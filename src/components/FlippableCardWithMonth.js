@@ -28,9 +28,11 @@ const FlippableCardWithMonth = ({
           {weeksData.map((item, i) => (
             <Week key={i} achieved={!!item.coin}>
               <WeekText
-                isFuture={
-                  selectedYear === currentYear && item.week > latestAchievedWeek
-                }
+                isFuture={(function () {
+                  const isPastYear = Number(selectedYear) < currentYear;
+                  const isAfterLatest = item.week > latestAchievedWeek;
+                  return isPastYear ? false : isAfterLatest;
+                })()}
               >
                 {item.week}주
               </WeekText>

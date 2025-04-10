@@ -173,7 +173,10 @@ const Quest = () => {
         const res = await Axios.get("/exp/jq/home");
         if (res.data.responseType === "SUCCESS") {
           const quests = res.data.success || [];
-          const maxWeek = Math.max(...quests.map((q) => q.week));
+          const filtered = quests.filter(
+            (q) => String(q.year) === String(selectedYear)
+          );
+          const maxWeek = Math.max(...filtered.map((q) => q.week), 0);
           setLatestAchievedWeek(maxWeek);
         }
       } catch (err) {
