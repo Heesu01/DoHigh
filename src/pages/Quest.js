@@ -293,7 +293,7 @@ const Quest = () => {
       <Header>
         <DropDownButton onClick={toggleMenu}>
           <DropDownText>
-            {selectedQuest ? selectedQuest.description : "퀘스트"}
+            {selectedQuest ? selectedQuest.questName : "퀘스트"}
           </DropDownText>
           <ArrowImg src={arrowIcon} alt="화살표" isOpen={menuOpen} />
         </DropDownButton>
@@ -302,15 +302,14 @@ const Quest = () => {
             {questList
               .filter(
                 (item) =>
-                  item.description !==
-                  (selectedQuest && selectedQuest.description)
+                  item.questName !== (selectedQuest && selectedQuest.questName)
               )
               .map((item) => (
                 <DropDownItem
                   key={item.questName}
                   onClick={() => handleMenuSelect(item)}
                 >
-                  {item.description}
+                  {item.questName}
                 </DropDownItem>
               ))}
           </DropDownList>
