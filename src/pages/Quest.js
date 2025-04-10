@@ -367,8 +367,6 @@ const Quest = () => {
             <FlippableCard
               monthsData={monthsData}
               selectedYear={Number(selectedYear)}
-              currentYear={new Date().getFullYear()}
-              selectedMonth={selectedMonth}
             />
           ) : (
             <FlippableCardWithMonth

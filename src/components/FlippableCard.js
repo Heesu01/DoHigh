@@ -10,12 +10,11 @@ function getCoinIcon(coin) {
   return bronzeCoin;
 }
 
-const FlippableCard = ({
-  monthsData = [],
-  selectedYear,
-  currentYear,
-  selectedMonth,
-}) => {
+const FlippableCard = ({ monthsData = [], selectedYear }) => {
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth() + 1;
+
   return (
     <CardWrapper>
       <Card>
@@ -23,7 +22,10 @@ const FlippableCard = ({
           {monthsData.map(({ month, coin }) => (
             <Month key={month}>
               <MonthText
-                isFuture={selectedYear === currentYear && month > selectedMonth}
+                isFuture={
+                  selectedYear > todayYear ||
+                  (selectedYear === todayYear && month > todayMonth)
+                }
               >
                 {month}월
               </MonthText>
