@@ -1,16 +1,14 @@
 import { Axios } from "./Axios";
 
 //게시글 전체 조회
-export const getPosts = async (sort = "LATEST") => {
+// BoardApi.js
+export const getPosts = async (page, size, order) => {
   try {
     const response = await Axios.get("/posts", {
-      params: { sort },
+      params: { page, size, sort: `createdAt,${order}` },
     });
-    if (response.data.responseType === "SUCCESS") {
-      return response.data.success;
-    } else {
-      throw new Error(response.data.error?.message);
-    }
+    console.log(response.data);
+    return response.data;
   } catch (error) {
     throw error;
   }
@@ -21,7 +19,7 @@ export const getPostById = async (postId) => {
   try {
     const response = await Axios.get(`/posts/${postId}`);
     if (response.data.responseType === "SUCCESS") {
-      return response.data.success;
+      return response.data;
     } else {
       throw new Error(response.data.error?.message);
     }

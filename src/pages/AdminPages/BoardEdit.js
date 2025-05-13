@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import styled from "styled-components";
 import backBtn from "../../assets/backBtn.svg";
-
 import { getPostById, updatePost } from "../../api/BoardApi";
+import ConfirmModal from "../../components/Modal";
 
 const BoardEdit = () => {
   const navigate = useNavigate();
   const { boardId } = useParams();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const isButtonDisabled =
     title.trim().length === 0 || content.trim().length === 0;
@@ -18,11 +19,18 @@ const BoardEdit = () => {
     const fetchExistingPost = async () => {
       try {
         const postId = Number(boardId);
-        const data = await getPostById(postId);
-        setTitle(data.title || "");
-        setContent(data.content || "");
+        const response = await getPostById(postId);
+        if (response.responseType === "SUCCESS") {
+          const { title, content } = response.success;
+          setTitle(title || "");
+          setContent(content || "");
+        } else {
+          console.error("게시글 조회 실패:", response.error.message);
+          alert("게시글을 불러오는 데 실패했습니다.");
+        }
       } catch (error) {
         console.error("게시글 불러오기 실패:", error.message);
+        alert("서버 오류로 게시글을 불러오지 못했습니다.");
       }
     };
 
@@ -45,10 +53,19 @@ const BoardEdit = () => {
     }
   };
 
+  const handleBackButton = () => {
+    setCancelModalOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setCancelModalOpen(false);
+    navigate(`/boardList/${boardId}`);
+  };
+
   return (
     <Container>
       <Header>
-        <BackButton onClick={() => navigate(`/boardList/${boardId}`)}>
+        <BackButton onClick={handleBackButton}>
           <img src={backBtn} alt="뒤로가기" />
         </BackButton>
         <HeaderTitle>게시글 수정</HeaderTitle>
@@ -80,6 +97,14 @@ const BoardEdit = () => {
       >
         수정 완료
       </SubmitButton>
+
+      <ConfirmModal
+        isOpen={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onConfirm={handleCancelEdit}
+        title="게시글 수정을 중단하시겠습니까?"
+        subtitle="수정사항은 삭제됩니다."
+      />
     </Container>
   );
 };

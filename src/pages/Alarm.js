@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { Axios } from "../api/Axios";
+import {
+  getNotificationList,
+  NotificationAsRead,
+} from "../api/NotificationApi";
 import backBtn from "../assets/backBtn.svg";
 import coin from "../assets/coin.svg";
 import flagIcon from "../assets/flag.svg";
@@ -13,10 +16,6 @@ const Alarm = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [clickedNotifications, setClickedNotifications] = useState(() => {
-    const storedClicked = localStorage.getItem("clickedNotifications");
-    return storedClicked ? new Set(JSON.parse(storedClicked)) : new Set();
-  });
 
   const categoryIcons = {
     EXP: coin,
@@ -26,51 +25,34 @@ const Alarm = () => {
     WQUEST: flagIcon,
   };
 
-  const handleNotificationClick = (id, category) => {
-    setClickedNotifications((prev) => {
-      const updated = new Set(prev);
-      updated.add(id);
-      localStorage.setItem(
-        "clickedNotifications",
-        JSON.stringify([...updated])
-      );
-      return updated;
-    });
+  const handleNotificationClick = async (id, redirectPath) => {
+    try {
+      await NotificationAsRead(id);
 
-    switch (category) {
-      case "EXP":
-        navigate("/exp");
-        break;
-      case "LEVELUP":
-        navigate("/main");
-        break;
-      case "MQUEST":
-        navigate("/quest");
-        break;
-      case "POST":
-        navigate("/boardlist");
-        break;
-      case "WQUEST":
-        navigate("/quest");
-        break;
-      default:
-        console.log("Unknocategory");
+      const data = await getNotificationList();
+      if (!data) {
+        setError("알림을 불러오지 못했습니다.");
+        return;
+      }
+      setNotifications(data);
+
+      if (redirectPath) {
+        navigate(redirectPath);
+      } else {
+        navigate("/alarm");
+      }
+    } catch (err) {
+      console.error("알림 읽음 처리 실패:", err);
     }
   };
 
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await Axios.get("/push/list");
-        if (response.data.responseType === "SUCCESS") {
-          setNotifications(response.data.success);
-        } else {
-          setError(
-            response.data.error?.message || "알림을 불러오지 못했습니다."
-          );
-        }
+        const data = await getNotificationList();
+        setNotifications(data);
       } catch (err) {
-        setError("서버와의 통신에 실패했습니다.");
+        setError("알림을 불러오지 못했습니다.");
       } finally {
         setLoading(false);
       }
@@ -100,9 +82,12 @@ const Alarm = () => {
           <NotificationCard
             key={notification.id}
             onClick={() =>
-              handleNotificationClick(notification.id, notification.category)
+              handleNotificationClick(
+                notification.id,
+                notification.redirectPath
+              )
             }
-            clicked={clickedNotifications.has(notification.id)}
+            read={notification.read}
           >
             <Icon>
               <img
@@ -126,7 +111,7 @@ export default Alarm;
 
 const PageContainer = styled.div`
   background-color: ${(props) => props.theme.colors.gray};
-  height: 100vh;
+  height: 92vh;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -136,7 +121,6 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   width: 100%;
-  position: relative;
   /* height: 50px; */
   margin-bottom: 10px;
   padding: 15px 0;
@@ -168,7 +152,7 @@ const NotificationList = styled.div`
 const NotificationCard = styled.div`
   display: flex;
   background-color: ${(props) =>
-    props.clicked ? props.theme.colors.gray : "#e3edfb"};
+    props.read ? props.theme.colors.gray : "#e3edfb"};
   height: 110px;
   padding: 0 25px;
   padding-top: 15px;

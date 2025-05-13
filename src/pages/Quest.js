@@ -1,35 +1,284 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import silverCoin from "../assets/coin/SilverDo.svg";
+import { Axios } from "../api/Axios";
+import arrowIcon from "../assets/dropdown.svg";
 import infoIcon from "../assets/info.svg";
 import expListInfo from "../assets/questInfo.svg";
-import FlippableCard from "../components/FlippableCard";
 
-const monthlyActivities = [
-  { month: 1, text: "생산성 증진", doPoint: 100 },
-  { month: 2, text: "생산성 증진", doPoint: 40 },
-  { month: 3, text: "생산성 증진", doPoint: 40 },
-  { month: 3, text: "생산성 증진", doPoint: 40 },
-  { month: 3, text: "생산성 증진", doPoint: 40 },
-  { month: 3, text: "생산성 증진", doPoint: 40 },
-];
+import defaultCoin from "../assets/coin.svg";
+import goldCoin from "../assets/coin/GoldDo.svg";
+import silverCoin from "../assets/coin/SilverDo.svg";
+import noCoin from "../assets/coin/noCoin.svg";
+
+import FlippableCard from "../components/FlippableCard";
+import FlippableCardWithMonth from "../components/FlippableCardWithMonth";
+import useTooltipVisible from "../hooks/useTooltipVisible";
+
+const getCoinImage = (coin) => {
+  if (coin === "MAX") return goldCoin;
+  if (coin === "MED") return silverCoin;
+  if (coin === null) return noCoin;
+  return defaultCoin;
+};
 
 const Quest = () => {
-  const cardContainerRef = useRef(null);
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [selectedYear, setSelectedYear] = useState("2025년");
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const dummyQuest = {
-    year: "2025년",
-    title: "2025 직무 퀘스트",
-    description: "2025년 직무 퀘스트 전체 요약",
-    coin: "med",
-    status: "Med 달성",
-    exp: 2200,
+  const initialTab = searchParams.get("tab") || "default";
+  const initialYear =
+    searchParams.get("year") || String(new Date().getFullYear());
+  const initialMonth =
+    Number(searchParams.get("month")) || new Date().getMonth() + 1;
+
+  const [selectedTab, setSelectedTab] = useState(initialTab);
+  const [selectedYear, setSelectedYear] = useState(initialYear);
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
+  const [questType, setQuestType] = useState("월");
+  const [apiData, setApiData] = useState(null);
+  const [monthsData, setMonthsData] = useState(
+    Array.from({ length: 12 }, (_, i) => ({ month: i + 1, coin: null }))
+  );
+  const [weeksData, setWeeksData] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [weekInfo, setWeekInfo] = useState([]);
+  const [questList, setQuestList] = useState([]);
+  const [selectedQuest, setSelectedQuest] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [latestAchievedWeek, setLatestAchievedWeek] = useState(0);
+  const infoRef = useRef(null);
+  const cardContainerRef = React.useRef(null);
+
+  const {
+    visible: infoOpen,
+    setVisible: setInfoOpen,
+    wrapperRef: infoWrapperRef,
+  } = useTooltipVisible();
+
+  useEffect(() => {
+    setSearchParams({
+      tab: selectedTab,
+      year: selectedYear,
+      month: selectedMonth,
+    });
+  }, [selectedTab, selectedYear, selectedMonth, setSearchParams]);
+
+  useEffect(() => {
+    const fetchQuestList = async () => {
+      try {
+        const res = await Axios.get("/member/quest/list");
+        if (res.data.responseType === "SUCCESS") {
+          const list = res.data.success;
+          setQuestList(list);
+          const found = list.find(
+            (item) => item.questName.toLowerCase() === selectedTab.toLowerCase()
+          );
+          if (found) {
+            setSelectedQuest(found);
+          } else if (list.length > 0) {
+            setSelectedQuest(list[0]);
+            setSelectedTab(list[0].questName);
+          }
+        } else {
+          console.error("QuestList API 에러:", res.data.error?.message);
+        }
+      } catch (err) {
+        console.error("QuestList API 호출 오류:", err);
+      }
+    };
+    fetchQuestList();
+  }, [selectedTab]);
+
+  useEffect(() => {
+    const fetchWeekInfo = async () => {
+      try {
+        const res = await Axios.get(`/member/week/info?year=${selectedYear}`);
+        if (res.data.responseType === "SUCCESS") {
+          setWeekInfo(res.data.success);
+        } else {
+          console.error("WeekInfo API 에러:", res.data.error?.message);
+        }
+      } catch (err) {
+        console.error("WeekInfo API 호출 오류:", err);
+      }
+    };
+
+    fetchWeekInfo();
+  }, [selectedYear]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (infoRef.current && !infoRef.current.contains(event.target)) {
+        setInfoOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const toggleMenu = () => setMenuOpen((prev) => !prev);
+  const handleMenuSelect = (item) => {
+    setSelectedQuest(item);
+    setMenuOpen(false);
+    setSelectedTab(item.questName);
   };
 
-  const handleYearChange = () => {
-    setSelectedYear((prev) => (prev === "2025년" ? "2024년" : "2025년"));
+  useEffect(() => {
+    if (selectedQuest) {
+      fetchQuestData(selectedYear, selectedQuest.questName);
+    }
+  }, [selectedYear, selectedQuest]);
+
+  const fetchQuestData = async (year, questNameParam) => {
+    try {
+      const res = await Axios.get(
+        `/member/quest?year=${year}&questName=${questNameParam}`
+      );
+      if (res.data.responseType === "SUCCESS") {
+        const successObj = res.data.success;
+        setApiData(successObj.data);
+        setQuestType(successObj.type);
+      } else {
+        console.error("API 에러:", res.data.error?.message);
+        setApiData(null);
+      }
+    } catch (err) {
+      console.error("API 호출 오류:", err);
+      setApiData(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!apiData) {
+      setMonthsData((prev) => prev.map((m) => ({ ...m, coin: null })));
+      setWeeksData([]);
+      setActivities([]);
+      return;
+    }
+    if (questType === "월") {
+      parseYearData(apiData);
+    } else {
+      if (weekInfo.length > 0) {
+        parseMonthData(apiData, selectedMonth);
+      }
+    }
+  }, [apiData, questType, selectedMonth, weekInfo]);
+
+  useEffect(() => {
+    const fetchLatestQuestWeek = async () => {
+      try {
+        const res = await Axios.get("/exp/jq/home");
+        if (res.data.responseType === "SUCCESS") {
+          const quests = res.data.success || [];
+          const filtered = quests.filter(
+            (q) => String(q.year) === String(selectedYear)
+          );
+          const maxWeek = Math.max(...filtered.map((q) => q.week), 0);
+          setLatestAchievedWeek(maxWeek);
+        }
+      } catch (err) {
+        console.error("퀘스트 주차 정보 조회 실패:", err);
+      }
+    };
+
+    fetchLatestQuestWeek();
+  }, []);
+
+  const parseYearData = (yearData) => {
+    const newMonths = [];
+    const newActs = [];
+    for (let m = 1; m <= 12; m++) {
+      const monthKey = String(m);
+      const monthObj = yearData[monthKey];
+      if (!monthObj || !monthObj.quests) {
+        newMonths.push({ month: m, coin: null });
+      } else {
+        const firstQuest = monthObj.quests[0];
+        newMonths.push({ month: m, coin: firstQuest.coin || null });
+        monthObj.quests.forEach((q) => {
+          newActs.push({
+            month: m,
+            week: q.week,
+            text: q.questName,
+            exp: q.exp,
+            coin: q.coin,
+          });
+        });
+      }
+    }
+    setMonthsData(newMonths);
+    setActivities(newActs);
+    setWeeksData([]);
+  };
+
+  const parseMonthData = (data, currentMonth) => {
+    const monthKey = String(currentMonth);
+    const monthObj = data[monthKey];
+    const quests = monthObj && monthObj.quests ? monthObj.quests : [];
+
+    const weekInfoForMonth = weekInfo.find(
+      (info) =>
+        info.year === selectedYear && info.month === String(currentMonth)
+    );
+
+    let newWeeks = [];
+    if (weekInfoForMonth) {
+      const availableWeeks = weekInfoForMonth.week.map(Number);
+      newWeeks = availableWeeks.map((weekNum) => {
+        const questForWeek = quests.find((q) => Number(q.week) === weekNum);
+        return {
+          week: weekNum,
+          coin: questForWeek ? questForWeek.coin : null,
+        };
+      });
+    } else {
+      newWeeks = quests.map((q) => ({
+        week: Number(q.week),
+        coin: q.coin,
+      }));
+    }
+
+    const newActs = quests.map((q) => ({
+      month: currentMonth,
+      week: q.week,
+      text: q.questName,
+      exp: q.exp,
+      coin: q.coin,
+    }));
+
+    setWeeksData(newWeeks);
+    setActivities(newActs);
+    setMonthsData([]);
+  };
+
+  const handleYearChange = (direction) => {
+    const yearNum = Number(selectedYear);
+    if (
+      direction === 1 &&
+      questType === "월" &&
+      yearNum >= new Date().getFullYear()
+    )
+      return;
+    const newYear = String(yearNum + direction);
+    setSelectedYear(newYear);
+  };
+
+  const handleWeekModeMonthChange = (direction) => {
+    let newMonth = selectedMonth + direction;
+    let newYear = Number(selectedYear);
+    if (newMonth < 1) {
+      newMonth = 12;
+      newYear -= 1;
+    } else if (newMonth > 12) {
+      newMonth = 1;
+      newYear += 1;
+    }
+    if (newYear > new Date().getFullYear()) return;
+    setSelectedYear(String(newYear));
+    setSelectedMonth(newMonth);
   };
 
   useEffect(() => {
@@ -40,41 +289,110 @@ const Quest = () => {
         behavior: "smooth",
       });
     }
-  }, [selectedYear]);
+  }, [selectedYear, questType, selectedMonth]);
 
   return (
     <Container>
       <Header>
-        <Title>퀘스트</Title>
+        <DropDownButton onClick={toggleMenu}>
+          <DropDownText>
+            {selectedQuest ? selectedQuest.questName : "퀘스트"}
+          </DropDownText>
+          <ArrowImg src={arrowIcon} alt="화살표" isOpen={menuOpen} />
+        </DropDownButton>
+        {menuOpen && (
+          <DropDownList>
+            {questList
+              .filter(
+                (item) =>
+                  item.questName !== (selectedQuest && selectedQuest.questName)
+              )
+              .map((item) => (
+                <DropDownItem
+                  key={item.questName}
+                  onClick={() => handleMenuSelect(item)}
+                >
+                  {item.questName}
+                </DropDownItem>
+              ))}
+          </DropDownList>
+        )}
       </Header>
 
       <SubContainer>
-        <Selector>
-          <Arrow onClick={handleYearChange}>{"<"}</Arrow>
-          <Year>{selectedYear}</Year>
-          <Arrow onClick={handleYearChange}>{">"}</Arrow>
-          <InfoIconWrapper onClick={() => setInfoOpen((prev) => !prev)}>
-            <InfoIcon src={infoIcon} alt="정보" />
-            {infoOpen && <InfoImage src={expListInfo} alt="정보 설명" />}
-          </InfoIconWrapper>
-        </Selector>
+        {questType === "월" ? (
+          <Selector>
+            <Arrow onClick={() => handleYearChange(-1)}>&lt;</Arrow>
+            <Year>{selectedYear}년</Year>
+            <Arrow
+              onClick={() => handleYearChange(1)}
+              disabled={Number(selectedYear) >= new Date().getFullYear()}
+            >
+              &gt;
+            </Arrow>
+            <InfoIconWrapper ref={infoWrapperRef}>
+              <InfoIcon
+                src={infoIcon}
+                alt="정보"
+                onClick={() => setInfoOpen((prev) => !prev)}
+              />
+              {infoOpen && (
+                <Tooltip>
+                  <img src={expListInfo} alt="정보 설명" />
+                </Tooltip>
+              )}
+            </InfoIconWrapper>
+          </Selector>
+        ) : (
+          <Selector>
+            <Arrow onClick={() => handleWeekModeMonthChange(-1)}>&lt;</Arrow>
+            <Year>
+              {selectedYear}년 {selectedMonth}월
+            </Year>
+            <Arrow onClick={() => handleWeekModeMonthChange(1)}>&gt;</Arrow>
+            <InfoIconWrapper ref={infoWrapperRef}>
+              <InfoIcon
+                src={infoIcon}
+                alt="정보"
+                onClick={() => setInfoOpen((prev) => !prev)}
+              />
+              {infoOpen && (
+                <Tooltip>
+                  <img src={expListInfo} alt="정보 설명" />
+                </Tooltip>
+              )}
+            </InfoIconWrapper>
+          </Selector>
+        )}
 
         <CardContainer ref={cardContainerRef}>
-          <CardWrapper>
-            <FlippableCard quest={dummyQuest} />
-          </CardWrapper>
+          {questType === "월" ? (
+            <FlippableCard
+              monthsData={monthsData}
+              selectedYear={Number(selectedYear)}
+            />
+          ) : (
+            <FlippableCardWithMonth
+              weeksData={weeksData}
+              latestAchievedWeek={latestAchievedWeek}
+              currentYear={new Date().getFullYear()}
+              selectedYear={Number(selectedYear)}
+            />
+          )}
         </CardContainer>
 
         <BottomContainer>
           <ActivityList>
-            {monthlyActivities.map((item) => (
-              <ActivityItem key={item.month}>
-                <CoinIcon src={silverCoin} alt="coin" />
+            {activities.map((item, idx) => (
+              <ActivityItem key={idx}>
+                <CoinIcon src={getCoinImage(item.coin)} alt="coin" />
                 <div>
                   <ActivityTitle>
-                    {item.month}월 {item.text}
+                    {questType === "월"
+                      ? `${item.month}월 ${item.text}`
+                      : `${item.week}주 ${item.text}`}
                   </ActivityTitle>
-                  <ActivityDo>{item.doPoint}do 획득</ActivityDo>
+                  <ActivityDo>{item.exp}do 획득</ActivityDo>
                 </div>
               </ActivityItem>
             ))}
@@ -103,21 +421,63 @@ const Header = styled.div`
   border-bottom: 1px solid #e6e7e8;
 `;
 
-const Title = styled.h1`
-  ${(props) => props.theme.fonts.semiBold};
-  font-size: 18px;
-  text-align: center;
+const DropDownButton = styled.div`
   flex: 1;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
-const SubContainer = styled.div``;
+const DropDownText = styled.div`
+  ${(props) => props.theme.fonts.semiBold};
+  font-size: 18px;
+`;
+
+const ArrowImg = styled.img`
+  position: absolute;
+  right: 20px;
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+  transform: ${({ isOpen }) => (isOpen ? "rotate(180deg)" : "rotate(0deg)")};
+`;
+
+const DropDownList = styled.ul`
+  position: absolute;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: ${(props) => props.theme.colors.gray};
+  z-index: 999;
+  width: 100%;
+`;
+
+const DropDownItem = styled.li`
+  ${(props) => props.theme.fonts.medium};
+  font-size: 18px;
+  text-align: center;
+  padding: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 1px solid #e6e7e8;
+
+  &:hover {
+    background-color: ${(props) => props.theme.colors.gray};
+  }
+`;
+
+const SubContainer = styled.div`
+  flex: 1;
+`;
 
 const Selector = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 38px;
-  margin-bottom: 22px;
+  margin-top: 34px;
+  margin-bottom: 18px;
   position: relative;
 `;
 
@@ -126,14 +486,26 @@ const Arrow = styled.button`
   border: none;
   font-size: 20px;
   color: ${(props) => props.theme.colors.gray3};
+  cursor: pointer;
+  padding: 7px 16px;
+  min-width: 44px;
+  min-height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:disabled {
+    color: #ccc;
+    cursor: default;
+  }
 `;
 
 const Year = styled.div`
   ${(props) => props.theme.fonts.semiBold};
   font-size: 18px;
-  margin: 0 30px;
+  margin: 0 10px;
   color: ${(props) => props.theme.colors.black2};
-  position: relative;
 `;
 
 const InfoIconWrapper = styled.div`
@@ -154,7 +526,7 @@ const InfoIconWrapper = styled.div`
     height: 40px;
     transform: translate(-50%, -50%);
     background: transparent;
-    pointer-events: auto; /* 클릭 이벤트 감지 */
+    pointer-events: auto;
   }
 `;
 
@@ -165,33 +537,22 @@ const InfoIcon = styled.img`
   z-index: 10;
 `;
 
-const InfoImage = styled.img`
+const Tooltip = styled.div`
   position: absolute;
-  top: 25px;
-  right: -24px;
-  width: 250px;
-  z-index: 100;
-  border-radius: 8px;
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  top: 20px;
+  right: -10px;
+  z-index: 10;
+  img {
+    width: 170px;
+    height: auto;
+  }
 `;
 
 const CardContainer = styled.div`
   display: flex;
   width: 100%;
-  overflow-x: scroll;
-  gap: 10px;
-  padding: 0 40px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-`;
-
-const CardWrapper = styled.div`
-  flex-shrink: 0;
-  width: 310px;
-  scroll-snap-align: center;
+  align-items: center;
+  justify-content: center;
 `;
 
 const BottomContainer = styled.div`
@@ -200,6 +561,7 @@ const BottomContainer = styled.div`
   border-radius: 10px;
   max-height: 420px;
   overflow-y: auto;
+  padding-bottom: 50px;
 `;
 
 const ActivityList = styled.div`

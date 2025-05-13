@@ -3,32 +3,47 @@ import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { createPost } from "../../api/BoardApi";
 import backBtn from "../../assets/backBtn.svg";
+import ConfirmModal from "../../components/Modal";
 
 const BoardPost = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isButtonDisabled =
     title.trim().length === 0 || content.trim().length === 0;
 
   const handleSubmit = async () => {
-    if (!isButtonDisabled) {
-      try {
-        await createPost(title, content);
-        alert("게시글이 작성되었습니다.");
-        navigate("/boardList");
-      } catch (error) {
-        console.error("게시글 작성 실패:", error.message);
-        alert("게시글 작성에 실패했습니다.");
-      }
+    if (isButtonDisabled || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      await createPost(title, content);
+      alert("게시글이 작성되었습니다.");
+      navigate("/boardList");
+    } catch (error) {
+      console.error("게시글 작성 실패:", error.message);
+      alert("게시글 작성에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleBackButton = () => {
+    setCancelModalOpen(true);
+  };
+
+  const handleCancelPost = () => {
+    setCancelModalOpen(false);
+    navigate(-1);
   };
 
   return (
     <Container>
       <Header>
-        <BackButton onClick={() => navigate(-1)}>
+        <BackButton onClick={handleBackButton}>
           <img src={backBtn} alt="뒤로가기" />
         </BackButton>
         <HeaderTitle>게시글 작성</HeaderTitle>
@@ -57,11 +72,19 @@ const BoardPost = () => {
 
       <SubmitButton
         type="button"
-        disabled={isButtonDisabled}
+        disabled={isButtonDisabled || isSubmitting}
         onClick={handleSubmit}
       >
-        작성 완료
+        {isSubmitting ? "작성 중..." : "작성 완료"}
       </SubmitButton>
+
+      <ConfirmModal
+        isOpen={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onConfirm={handleCancelPost}
+        title="게시글 작성을 취소하시겠습니까?"
+        subtitle="작성하시던 내용은 삭제됩니다."
+      />
     </Container>
   );
 };

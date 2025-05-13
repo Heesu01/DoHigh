@@ -3,9 +3,8 @@ import { IoEye, IoEyeOff } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { Axios } from "../api/Axios";
-import logo from "../assets/logo.svg";
-// import { getFCMToken } from "../firebase";
-// import { handleAllowNotification } from "../NotificationFunc";
+import logo from "../assets/logo.png";
+import { handleAllowNotification } from "../NotificationFunc";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -14,13 +13,6 @@ const Login = () => {
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-
-  // useEffect(() => {
-  //   const token = localStorage.getItem("accessToken");
-  //   if (token) {
-  //     navigate("/main");
-  //   }
-  // }, [navigate]);
 
   const handleLogin = async () => {
     const endpoint =
@@ -35,40 +27,59 @@ const Login = () => {
       const { responseType, success, error } = response.data;
 
       if (responseType === "SUCCESS") {
-        // await handleAllowNotification();
-
-        localStorage.setItem("accessToken", success.jwtToken);
+        // localStorage.setItem("accessToken", success.jwtToken);
+        localStorage.setItem("accessToken", success.accessToken);
+        localStorage.setItem("refreshToken", success.refreshToken);
         localStorage.setItem("isAdmin", userType === "admin");
-
-        // if (userType === "general") {
-        //   const fcmToken = await getFCMToken();
-        //   if (fcmToken) {
-        //     await Axios.post("/member/uuid", {
-        //       token: fcmToken,
-        //     });
-        //   }
-        // }
 
         if (userType === "admin") {
           navigate("/admin");
         } else {
-          navigate("/main");
+          // 1. 먼저 사용자 정보 확인 (token 유무)
+          const userInfoRes = await Axios.get("/member/");
+          const { responseType: infoType, success: info } = userInfoRes.data;
+
+          if (infoType === "SUCCESS") {
+            const { token } = info;
+
+            if (!token) {
+              navigate("/onboarding");
+            } else {
+              navigate("/main");
+            }
+
+            // 2. navigate 이후 → FCM 토큰 전송
+            try {
+              const fcmToken = await handleAllowNotification();
+              if (fcmToken) {
+                console.log("획득한 FCM Token:", fcmToken);
+                const tokenRes = await Axios.post("/member/uuid", {
+                  token: fcmToken,
+                });
+                console.log("FCM 토큰 전송 성공:", tokenRes.data);
+              } else {
+                console.warn("FCM 토큰을 받지 못했습니다.");
+              }
+            } catch (e) {
+              console.error("FCM 토큰 처리 중 에러:", e);
+            }
+          }
         }
       } else if (responseType === "ERROR") {
         setErrorMessage(error.message || "로그인에 실패했습니다.");
       }
-    } catch (error) {
+    } catch (err) {
       alert("로그인에 실패했습니다. 다시 시도해주세요");
-      console.error(error);
+      console.error(err);
     }
   };
 
   return (
     <Container>
-      <img src={logo} alt="logo" />
+      <Logo src={logo} alt="Company Logo" />
       <TabContainer>
         <Tab
-          active={userType === "general"}
+          $active={userType === "general"}
           onClick={() => {
             setUserType("general");
             setId("");
@@ -78,7 +89,7 @@ const Login = () => {
           두핸더
         </Tab>
         <Tab
-          active={userType === "admin"}
+          $active={userType === "admin"}
           onClick={() => {
             setUserType("admin");
             setId("");
@@ -139,9 +150,9 @@ const Tab = styled.div`
   flex: 1;
   text-align: center;
   font-weight: 500;
-  color: ${(props) => (props.active ? "black" : props.theme.colors.gray2)};
+  color: ${(props) => (props.$active ? "black" : props.theme.colors.gray2)};
   border-bottom: ${(props) =>
-    props.active ? `3px solid ${props.theme.colors.subBlue}` : "none"};
+    props.$active ? `3px solid ${props.theme.colors.subBlue}` : "none"};
 `;
 
 const InputContainer = styled.div`
@@ -198,4 +209,8 @@ const ErrorMessage = styled.div`
   color: ${(props) => props.theme.colors.mainC};
   font-size: 14px;
   margin-bottom: 16px;
+`;
+
+const Logo = styled.img`
+  width: 150px;
 `;

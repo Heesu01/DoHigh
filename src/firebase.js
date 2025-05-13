@@ -1,6 +1,13 @@
+//firebase.js의 목표 역할
+// 	1.	Firebase 앱 초기화
+// 	2.	getFCMToken 함수만 제공 (토큰 요청용)
+// 	3.	messaging 인스턴스 export (다른 곳에서 onMessage() 처리하도록)
+// 	4.	포그라운드 메시지 수신은 다른 컴포넌트에서 담당 (ex. Main.js)
+// 	5.	initializeFCM() 함수 제거 (책임 분리 목적)
+
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getMessaging, getToken } from "firebase/messaging";
 
 // import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -15,10 +22,9 @@ const firebaseConfig = {
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
+// Firebase 초기화 및 FCM 인스턴스 생성
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 // const analytics = getAnalytics(app);
@@ -30,53 +36,15 @@ const getFCMToken = async () => {
     const token = await getToken(messaging, { vapidKey });
     if (token) {
       console.log("FCM Token:", token);
-      return token; // 토큰을 반환
+      return token;
     } else {
-      console.error("FCM token not available.");
+      console.error(" FCM 토큰이 없습니다.");
       return null;
     }
   } catch (error) {
-    console.error("Error getting token:", error);
+    console.error(" FCM 토큰 요청 실패 ", error);
     return null;
   }
 };
 
-// 푸시 알림을 수신하는 처리 함수
-// const handleIncomingMessages = () => {
-//   onMessage(messaging, (payload) => {
-//     console.log("Message received. ", payload);
-//     // 알림 표시
-//     new Notification(payload.notification.title, {
-//       body: payload.notification.body,
-//     });
-//   });
-// };
-
-// 푸시 알림을 수신하는 처리 함수
-const handleIncomingMessages = () => {
-  onMessage(messaging, (payload) => {
-    console.log("Message received. ", payload);
-
-    // 클라이언트에서 알림을 표시하는 방법
-    const { title, body } = payload.notification;
-    new Notification(title, {
-      body: body,
-      icon: payload.notification.icon || "/default-icon.png",
-    });
-
-    // // 알림 클릭 시 동작 처리
-    // self.addEventListener("notificationclick", (event) => {
-    //   event.notification.close();
-    //   // 클릭 시 특정 URL로 이동
-    //   clients.openWindow("https://your-website.com");
-    // });
-  });
-};
-
-// `getFCMToken`과 `handleIncomingMessages`를 호출하는 함수
-const initializeFCM = () => {
-  getFCMToken();
-  handleIncomingMessages();
-};
-
-export { messaging, initializeFCM, getFCMToken };
+export { getFCMToken, messaging };

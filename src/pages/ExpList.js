@@ -1,23 +1,11 @@
 import dayjs from "dayjs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import {
-  getCpExp,
-  getExpList,
-  getJqExp,
-  getLqExp,
-  getPfExp,
-} from "../api/ExpApi";
 import dropdownArrow from "../assets/dropdown.svg";
-import expListInfo1 from "../assets/expListInfo1.svg";
-import expListInfo2 from "../assets/expListInfo2.svg";
-import expListInfo3 from "../assets/expListInfo3.svg";
 import infoIcon from "../assets/info.svg";
-
-const orderMap = {
-  최신순: "desc",
-  오래된순: "asc",
-};
+import useExpInfinite from "../hooks/useExpInfinite.js";
+import useTooltipVisible from "../hooks/useTooltipVisible";
 
 const coinMap = {
   S: require("../assets/coin/S.svg").default,
@@ -25,7 +13,7 @@ const coinMap = {
   B: require("../assets/coin/B.svg").default,
   C: require("../assets/coin/C.svg").default,
   D: require("../assets/coin/D.svg").default,
-  BronzeDo: require("../assets/coin/BronzeDo.svg").default,
+  BronzeDo: require("../assets/coin.svg").default,
   MAX: require("../assets/coin/GoldDo.svg").default,
   MED: require("../assets/coin/SilverDo.svg").default,
 };
@@ -38,14 +26,37 @@ const tabList = [
   "전사 프로젝트",
 ];
 
+const normalizeTab = (tab) => tab.replace(/\s/g, "");
+
 const ExpList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "전체";
+  const [selectedTab, setSelectedTab] = useState(normalizeTab(initialTab));
   const [sortOpen, setSortOpen] = useState(false);
-  const [infoOpen, setInfoOpen] = useState(false);
   const [sortOption, setSortOption] = useState("최신순");
-  const [selectedTab, setSelectedTab] = useState("전체");
-  const [expList, setExpList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const infoRef = useRef(null);
+  const observerRef = useRef();
+
+  const {
+    visible: infoOpen,
+    setVisible: setInfoOpen,
+    wrapperRef: infoRef,
+  } = useTooltipVisible();
+
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useExpInfinite(selectedTab, sortOption);
+
+  const expList = data?.pages.flatMap((page) => page.exps) ?? [];
+
+  useEffect(() => {
+    setSearchParams({ tab: selectedTab });
+  }, [selectedTab, setSearchParams]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -60,51 +71,47 @@ const ExpList = () => {
     };
   }, []);
 
-  const fetchExpList = useCallback(async () => {
-    setLoading(true);
-    try {
-      const order = orderMap[sortOption];
-      let data;
-      if (selectedTab === "전체") {
-        data = await getExpList(order);
-      } else if (selectedTab === "인사평가") {
-        data = await getPfExp(order);
-      } else if (selectedTab === "직무 퀘스트") {
-        data = await getJqExp(order);
-      } else if (selectedTab === "리더 퀘스트") {
-        data = await getLqExp(order);
-      } else if (selectedTab === "전사 프로젝트") {
-        data = await getCpExp(order);
-      }
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage) return;
 
-      if (data.responseType === "SUCCESS") {
-        setExpList(data.success);
-      } else {
-        console.error("데이터 로드 실패:", data.error?.message);
-        setExpList([]);
-      }
-    } catch (error) {
-      console.error("API 호출 오류:", error.message);
-    } finally {
-      setLoading(false);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
     }
-  }, [selectedTab, sortOption]);
+
+    return () => {
+      if (observerRef.current) {
+        observer.unobserve(observerRef.current);
+      }
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   useEffect(() => {
-    fetchExpList();
-  }, [fetchExpList]);
+    const imageSrc = getInfoImage();
+    if (imageSrc) {
+      const img = new Image();
+      img.src = imageSrc;
+    }
+    setSortOption("최신순");
+    setSortOpen(false);
+  }, [selectedTab]);
 
-  const handleSortClick = () => {
-    setSortOpen((prev) => !prev);
-  };
-
+  const handleSortClick = () => setSortOpen((prev) => !prev);
   const handleSortSelect = (option) => {
     setSortOption(option);
     setSortOpen(false);
   };
 
   const handleTabClick = (tab) => {
-    setSelectedTab(tab);
+    setSelectedTab(normalizeTab(tab));
     setInfoOpen(false);
   };
 
@@ -113,18 +120,19 @@ const ExpList = () => {
   };
 
   const formatDate = (dateString) => {
-    return dayjs(dateString).format("YYYY.MM.DD");
+    const normalizedDate = dateString.replace(/\./g, "-");
+    return dayjs(normalizedDate).format("YYYY.MM.DD");
   };
 
   const getInfoImage = () => {
-    switch (selectedTab) {
-      case "직무 퀘스트":
-        return expListInfo1;
-      case "인사평가":
-        return expListInfo2;
-      case "리더 퀘스트":
-      case "전사 프로젝트":
-        return expListInfo3;
+    switch (normalizeTab(selectedTab)) {
+      case normalizeTab("직무 퀘스트"):
+        return "/assets/expListInfo1.svg";
+      case normalizeTab("인사평가"):
+        return "/assets/expListInfo2.svg";
+      case normalizeTab("리더 퀘스트"):
+      case normalizeTab("전사 프로젝트"):
+        return "/assets/expListInfo3.svg";
       default:
         return null;
     }
@@ -141,7 +149,7 @@ const ExpList = () => {
           {tabList.map((tab) => (
             <Tab
               key={tab}
-              selected={selectedTab === tab}
+              selected={normalizeTab(tab) === selectedTab}
               onClick={() => handleTabClick(tab)}
             >
               {tab}
@@ -149,9 +157,9 @@ const ExpList = () => {
           ))}
         </TabBar>
 
-        <SortBar hasInfoIcon={selectedTab !== "전체"}>
-          {selectedTab !== "전체" && (
-            <InfoIconWrapper onClick={handleInfoClick}>
+        <SortBar hasInfoIcon={selectedTab !== normalizeTab("전체")}>
+          {selectedTab !== normalizeTab("전체") && (
+            <InfoIconWrapper onClick={handleInfoClick} ref={infoRef}>
               <InfoIcon src={infoIcon} alt="정보" />
               {infoOpen && <InfoImage src={getInfoImage()} alt="정보 설명" />}
             </InfoIconWrapper>
@@ -195,6 +203,7 @@ const ExpList = () => {
               </ItemRight>
             </ListItem>
           ))}
+          {hasNextPage && <ObserverTarget ref={observerRef} />}
         </ListContainer>
       )}
     </Container>
@@ -298,7 +307,7 @@ const InfoIconWrapper = styled.div`
     height: 40px;
     transform: translate(-50%, -50%);
     background: transparent;
-    pointer-events: auto; /* 클릭 이벤트 감지 */
+    pointer-events: auto;
   }
 `;
 
@@ -386,6 +395,7 @@ const ItemIcon = styled.img`
 const ItemInfo = styled.div`
   display: flex;
   flex-direction: column;
+  min-width: 200px;
 `;
 
 const ItemDate = styled.p`
@@ -413,4 +423,9 @@ const ItemPoints = styled.div`
   ${(props) => props.theme.fonts.semiBold};
   font-size: 24px;
   color: ${(props) => props.theme.colors.mainC};
+`;
+
+const ObserverTarget = styled.div`
+  width: 100%;
+  height: 30px;
 `;

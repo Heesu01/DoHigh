@@ -1,32 +1,50 @@
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { getPosts } from "../api/BoardApi";
 import backBtn from "../assets/backBtn.svg";
 import dropdownArrow from "../assets/dropdown.svg";
 import writeIcon from "../assets/write.svg";
+import useBoardInfinite from "../hooks/useBoardInfinite";
 
 const BoardList = () => {
   const navigate = useNavigate();
   const [sortOpen, setSortOpen] = useState(false);
   const [sortOption, setSortOption] = useState("최신순");
-  const [posts, setPosts] = useState([]);
   const isAdmin = localStorage.getItem("isAdmin") === "true";
+  const observerRef = useRef();
+
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useBoardInfinite(sortOption);
+
+  const posts = data?.pages.flatMap((page) => page.posts) ?? [];
 
   useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const sortParam = sortOption === "최신순" ? "LATEST" : "OLDEST";
-        const { posts } = await getPosts(sortParam);
-        setPosts(posts);
-      } catch (error) {
-        console.error("게시글 조회 실패:", error.message);
-      }
-    };
+    if (!hasNextPage || isFetchingNextPage) return;
 
-    fetchPosts();
-  }, [sortOption]);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) observer.unobserve(observerRef.current);
+    };
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const handleSortClick = () => {
     setSortOpen((prev) => !prev);
@@ -72,9 +90,9 @@ const BoardList = () => {
       </HeaderAndSortWrapper>
 
       <ListContainer>
-        {posts.map((post) => (
+        {posts.map((post, idx) => (
           <ListItem
-            key={post.id}
+            key={post.id + "-" + idx}
             onClick={() => navigate(`/boardList/${post.id}`)}
           >
             <ItemTitle>{post.title}</ItemTitle>
@@ -82,6 +100,7 @@ const BoardList = () => {
             <ItemDate>작성일 {formatDate(post.createdAt)}</ItemDate>
           </ListItem>
         ))}
+        {hasNextPage && <ObserverTarget ref={observerRef} />}
       </ListContainer>
 
       {isAdmin && (
@@ -241,4 +260,9 @@ const WriteButton = styled.button`
     width: 31px;
     height: 31px;
   }
+`;
+
+const ObserverTarget = styled.div`
+  width: 100%;
+  height: 30px;
 `;
