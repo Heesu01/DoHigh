@@ -1,11 +1,10 @@
-# 두하이(DOHIGH) – 사내 경험치 관리 웹앱
-
+# 두하이(DOHIGH) - 사내 경험치 기반 성장 플랫폼
+> 
 > **Blaybus 앱 개발 경진대회 슈퍼노바 팀**  
 > *최우수상 · 팀워크상 수상작 — 이후 기업 제안으로 협업 개발 및 실서비스 배포*
 
  </br> 
- </br> 
- 
+
 ## 프로젝트 개요
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/16fdbd0e-2488-4c6d-bb71-e63a046179be" />
 
@@ -13,7 +12,6 @@ DOHIGH는 구성원들이 자신의 업무 경험을 시각적으로 관리하�
 초기에는 앱 개발 경진대회 출품작으로 시작해 수상 이후, 기업의 제안으로 인사팀과 추가 개발 인원을 모집해 협업 개발을 진행하였고, 실사용 가능한 시스템으로 완성 및 배포하였습니다.
 
 
- </br> 
 </br> 
 
 ## 주요 역할
@@ -37,7 +35,7 @@ DOHIGH는 구성원들이 자신의 업무 경험을 시각적으로 관리하�
   - 회의 및 피드백을 통해 관리자 기능, 경험치 시각화 방식 구체화
   - 요청 기반의 화면 개선 및 기능 추가 주도
 
- </br>  </br> 
+ </br> 
 
 ## 주요 기능
 <img width="1000" alt="스크린샷 2025-05-03 오후 10 03 55" src="https://github.com/user-attachments/assets/09b0806d-4693-41fe-bb74-bfc8ba9767d3" />
@@ -86,17 +84,19 @@ DOHIGH는 구성원들이 자신의 업무 경험을 시각적으로 관리하�
 
 
 
- </br>  </br> 
+ </br> 
  
 ## ERD
 <img width="1000" alt="스크린샷 2025-05-03 오후 10 06 08" src="https://github.com/user-attachments/assets/15cd63c8-7e2b-412e-9928-c90cb426d3c3" />
 
- </br>  </br> 
-## Information Architecture
+ </br> 
+ 
+ ## Information Architecture
 <img width="1129" alt="image" src="https://github.com/user-attachments/assets/7a559d21-1d8c-4c0e-ac5f-49860dd3aa2b" />
 <img width="1000" alt="스크린샷 2025-05-03 오후 10 07 18" src="https://github.com/user-attachments/assets/d6e50170-3e77-4594-9e1e-7d4793bfd781" />
 
- </br>  </br> 
+ </br> 
+ 
 ## 프로젝트 성과
 
 | 항목 | 내용 |
@@ -105,11 +105,12 @@ DOHIGH는 구성원들이 자신의 업무 경험을 시각적으로 관리하�
 | 실사용성 | 기업 사내 실배포 및 내부 시스템 적용 |
 | 효과 | 동기부여 + 자기관리 + 관리자 효율화 통합 플랫폼 |
 | UX | 편리한 UI/UX와 직관적 데이터 시각화를 통해 사용 경험 최적화 |
+| 관련 기사 | [편리한 UI/UX와 직관적 데이터 시각화를 통해 사용 경험 최적화](https://www.hellot.net/news/article.html?no=100806) |
 
- </br>  </br> 
+ </br> 
 
 --- 
-## 📘 Git 컨벤션
+## Git 컨벤션
 
 ### Branch Naming Convention
 
